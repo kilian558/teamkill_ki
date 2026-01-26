@@ -57,6 +57,7 @@ REQUEST_TIMEOUT = 10  # Timeout for API requests in seconds
 SEEN_LOG_IDS_MAX = 2000  # Maximum seen log IDs (deque maxlen)
 SLEEP_BETWEEN_SERVERS = 2  # Sleep between server checks in seconds
 SLEEP_BETWEEN_CYCLES = 10  # Sleep between full cycles in seconds
+DISCORD_INVITE = "discord.gg/gbg-hll"  # Discord server invite link
 
 # API Endpoints
 CHAT_ENDPOINT = "get_historical_logs"
@@ -245,6 +246,9 @@ def process_server_logs(base_url, state, current_time):
 
     for log in reversed(new_logs):
         log_id = log.get("id")
+        if not log_id:
+            continue
+            
         if log_id in state["seen_log_ids"]:
             continue
 
@@ -269,7 +273,7 @@ def process_server_logs(base_url, state, current_time):
                 continue  # Zu früh für diesen Spieler
 
             joke = get_joke()
-            pm_text = f"{joke}\n\ndiscord.gg/gbg-hll"
+            pm_text = f"{joke}\n\n{DISCORD_INVITE}"
 
             success = send_private_message(base_url, player_id, player_name, pm_text)
             if success:
