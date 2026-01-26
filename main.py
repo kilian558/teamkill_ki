@@ -93,9 +93,14 @@ def get_port_from_url(url):
 # Normalize URLs at startup
 CRCON_BASE_URLS = [normalize_url(url) for url in CRCON_BASE_URLS]
 
-# Pro Server: last_max_id, seen_log_ids (deque), player_cooldowns (dict player_id -> last_time)
+# Pro Server: last_max_id, seen_log_ids (set for O(1) lookup), recent_log_ids (deque for cleanup), player_cooldowns
 server_states = {
-    url: {"last_max_id": 0, "seen_log_ids": deque(maxlen=SEEN_LOG_IDS_MAX), "player_cooldowns": {}}
+    url: {
+        "last_max_id": 0, 
+        "seen_log_ids": set(),
+        "recent_log_ids": deque(maxlen=SEEN_LOG_IDS_MAX),
+        "player_cooldowns": {}
+    }
     for url in CRCON_BASE_URLS
 }
 
@@ -277,11 +282,19 @@ def process_server_logs(base_url, state, current_time):
 
             success = send_private_message(base_url, player_id, player_name, pm_text)
             if success:
-                state["seen_log_ids"].append(log_id)
+                # Add to both set (for fast lookup) and deque (for automatic cleanup)
+                state["seen_log_ids"].add(log_id)
+                state["recent_log_ids"].append(log_id)
                 state["player_cooldowns"][player_id] = current_time
                 log_to_discord(base_url, player_name, player_id, log.get("content", ""), joke)
                 port = get_port_from_url(base_url)
                 logger.info(f"Harmloser TK-Witz auf Port {port} an {player_name} gesendet")
+
+    # Clean up old entries from set when deque size limit is reached
+    # The deque automatically removes oldest items, but we need to sync the set
+    if len(state["recent_log_ids"]) >= SEEN_LOG_IDS_MAX:
+        # Keep only IDs that are still in the deque
+        state["seen_log_ids"] = set(state["recent_log_ids"])
 
 
 def main():
