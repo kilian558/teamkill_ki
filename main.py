@@ -3,9 +3,7 @@ import time
 import os
 import logging
 import signal
-import sys
 from urllib.parse import urlparse
-from collections import deque
 from dotenv import load_dotenv
 from openai import OpenAI
 import urllib3
@@ -68,15 +66,23 @@ grok_client = OpenAI(api_key=XAI_API_KEY, base_url="https://api.x.ai/v1")
 # Create a persistent session for connection pooling
 session = requests.Session()
 
+# Shutdown flag for graceful shutdown
+shutdown_flag = False
+
+def signal_handler(sig, frame):
+    """Handle shutdown signals."""
+    global shutdown_flag
+    logger.info(f"Received signal {sig}, initiating graceful shutdown...")
+    shutdown_flag = True
+
 def cleanup_resources():
     """Clean up resources on shutdown."""
-    logger.info("Shutting down bot, closing connections...")
+    logger.info("Closing connections...")
     session.close()
-    sys.exit(0)
 
 # Register signal handlers for graceful shutdown
-signal.signal(signal.SIGINT, lambda sig, frame: cleanup_resources())
-signal.signal(signal.SIGTERM, lambda sig, frame: cleanup_resources())
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 def normalize_url(url):
     """Normalize URL by ensuring it ends with a slash."""
@@ -93,12 +99,11 @@ def get_port_from_url(url):
 # Normalize URLs at startup
 CRCON_BASE_URLS = [normalize_url(url) for url in CRCON_BASE_URLS]
 
-# Pro Server: last_max_id, seen_log_ids (set for O(1) lookup), recent_log_ids (deque for cleanup), player_cooldowns
+# Pro Server: last_max_id, seen_log_ids (set), player_cooldowns (dict player_id -> last_time)
 server_states = {
     url: {
         "last_max_id": 0, 
         "seen_log_ids": set(),
-        "recent_log_ids": deque(maxlen=SEEN_LOG_IDS_MAX),
         "player_cooldowns": {}
     }
     for url in CRCON_BASE_URLS
@@ -282,19 +287,17 @@ def process_server_logs(base_url, state, current_time):
 
             success = send_private_message(base_url, player_id, player_name, pm_text)
             if success:
-                # Add to both set (for fast lookup) and deque (for automatic cleanup)
                 state["seen_log_ids"].add(log_id)
-                state["recent_log_ids"].append(log_id)
                 state["player_cooldowns"][player_id] = current_time
                 log_to_discord(base_url, player_name, player_id, log.get("content", ""), joke)
                 port = get_port_from_url(base_url)
                 logger.info(f"Harmloser TK-Witz auf Port {port} an {player_name} gesendet")
 
-    # Clean up old entries from set when deque size limit is reached
-    # The deque automatically removes oldest items, but we need to sync the set
-    if len(state["recent_log_ids"]) >= SEEN_LOG_IDS_MAX:
-        # Keep only IDs that are still in the deque
-        state["seen_log_ids"] = set(state["recent_log_ids"])
+    # Clean up old entries from set when it gets too large
+    if len(state["seen_log_ids"]) > SEEN_LOG_IDS_MAX:
+        # Keep only the most recent IDs (higher IDs are newer)
+        sorted_ids = sorted(state["seen_log_ids"], reverse=True)
+        state["seen_log_ids"] = set(sorted_ids[:SEEN_LOG_IDS_MAX // 2])
 
 
 def main():
@@ -302,15 +305,22 @@ def main():
     logger.info("TK-Witz-Bot gestartet – harmlose Witze bei TK-Chats (kein Spam, Cooldown pro Spieler)!")
     logger.info(f"Überwachte Server: {len(CRCON_BASE_URLS)}")
     
-    while True:
-        current_time = time.time()
+    try:
+        while not shutdown_flag:
+            current_time = time.time()
 
-        for base_url in CRCON_BASE_URLS:
-            state = server_states[base_url]
-            process_server_logs(base_url, state, current_time)
-            time.sleep(SLEEP_BETWEEN_SERVERS)
+            for base_url in CRCON_BASE_URLS:
+                if shutdown_flag:
+                    break
+                state = server_states[base_url]
+                process_server_logs(base_url, state, current_time)
+                time.sleep(SLEEP_BETWEEN_SERVERS)
 
-        time.sleep(SLEEP_BETWEEN_CYCLES)
+            if not shutdown_flag:
+                time.sleep(SLEEP_BETWEEN_CYCLES)
+    finally:
+        cleanup_resources()
+        logger.info("Bot stopped.")
 
 
 if __name__ == "__main__":
