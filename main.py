@@ -54,8 +54,7 @@ KEYWORDS = ["tk", "teamkill", "team kill", "friendly fire", "sorry tk", "tk'ed",
 COOLDOWN_SECONDS = 60  # Pro Spieler pro Server – verhindert Spam
 LOG_LIMIT = 200
 REQUEST_TIMEOUT = 10  # Timeout for API requests in seconds
-SEEN_LOG_IDS_MAX = 2000  # Maximum seen log IDs before cleanup
-SEEN_LOG_IDS_KEEP = 1000  # Number of IDs to keep after cleanup
+SEEN_LOG_IDS_MAX = 2000  # Maximum seen log IDs (deque maxlen)
 SLEEP_BETWEEN_SERVERS = 2  # Sleep between server checks in seconds
 SLEEP_BETWEEN_CYCLES = 10  # Sleep between full cycles in seconds
 
@@ -85,7 +84,10 @@ def normalize_url(url):
 def get_port_from_url(url):
     """Extract port from URL for display purposes."""
     parsed = urlparse(url)
-    return str(parsed.port) if parsed.port else "80"
+    if parsed.port:
+        return str(parsed.port)
+    # Return default port based on scheme
+    return "443" if parsed.scheme == "https" else "80"
 
 # Normalize URLs at startup
 CRCON_BASE_URLS = [normalize_url(url) for url in CRCON_BASE_URLS]
