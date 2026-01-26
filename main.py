@@ -2,7 +2,10 @@ import requests
 import time
 import os
 import logging
+import signal
+import sys
 from urllib.parse import urlparse
+from collections import deque
 from dotenv import load_dotenv
 from openai import OpenAI
 import urllib3
@@ -65,6 +68,16 @@ grok_client = OpenAI(api_key=XAI_API_KEY, base_url="https://api.x.ai/v1")
 # Create a persistent session for connection pooling
 session = requests.Session()
 
+def cleanup_resources():
+    """Clean up resources on shutdown."""
+    logger.info("Shutting down bot, closing connections...")
+    session.close()
+    sys.exit(0)
+
+# Register signal handlers for graceful shutdown
+signal.signal(signal.SIGINT, lambda sig, frame: cleanup_resources())
+signal.signal(signal.SIGTERM, lambda sig, frame: cleanup_resources())
+
 def normalize_url(url):
     """Normalize URL by ensuring it ends with a slash."""
     return url if url.endswith("/") else url + "/"
@@ -77,9 +90,9 @@ def get_port_from_url(url):
 # Normalize URLs at startup
 CRCON_BASE_URLS = [normalize_url(url) for url in CRCON_BASE_URLS]
 
-# Pro Server: last_max_id, seen_log_ids, player_cooldowns (dict player_id -> last_time)
+# Pro Server: last_max_id, seen_log_ids (deque), player_cooldowns (dict player_id -> last_time)
 server_states = {
-    url: {"last_max_id": 0, "seen_log_ids": set(), "player_cooldowns": {}}
+    url: {"last_max_id": 0, "seen_log_ids": deque(maxlen=SEEN_LOG_IDS_MAX), "player_cooldowns": {}}
     for url in CRCON_BASE_URLS
 }
 
@@ -237,13 +250,14 @@ def process_server_logs(base_url, state, current_time):
         if "CHAT" not in log_type:
             continue
 
+        # Validate message content early to fail fast
+        message_text = str(log.get("content", "")).lower().strip()
+        if not message_text:
+            continue
+
         player_name = log.get("player1_name") or log.get("player_name") or "Unbekannt"
         player_id = log.get("player1_id") or log.get("player_id")
         if not player_id:
-            continue
-
-        message_text = str(log.get("content", "")).lower().strip()
-        if not message_text:
             continue
 
         if any(keyword.lower() in message_text for keyword in KEYWORDS):
@@ -257,17 +271,11 @@ def process_server_logs(base_url, state, current_time):
 
             success = send_private_message(base_url, player_id, player_name, pm_text)
             if success:
-                state["seen_log_ids"].add(log_id)
+                state["seen_log_ids"].append(log_id)
                 state["player_cooldowns"][player_id] = current_time
                 log_to_discord(base_url, player_name, player_id, log.get("content", ""), joke)
                 port = get_port_from_url(base_url)
                 logger.info(f"Harmloser TK-Witz auf Port {port} an {player_name} gesendet")
-
-    # Aufräumen
-    if len(state["seen_log_ids"]) > SEEN_LOG_IDS_MAX:
-        # Keep only the most recent IDs
-        sorted_ids = sorted(state["seen_log_ids"], reverse=True)
-        state["seen_log_ids"] = set(sorted_ids[:SEEN_LOG_IDS_KEEP])
 
 
 def main():
