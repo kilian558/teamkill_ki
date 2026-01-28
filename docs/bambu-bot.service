@@ -1,0 +1,20 @@
+[Unit]
+Description=Bambu Lab Discord Bot
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=runner
+WorkingDirectory=/home/runner/work/teamkill_ki/teamkill_ki
+ExecStart=/usr/bin/python3 bambu_bot.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables (alternativ: aus .env Datei)
+# EnvironmentFile=/home/runner/work/teamkill_ki/teamkill_ki/.env
+
+[Install]
+WantedBy=multi-user.target
