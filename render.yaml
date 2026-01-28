@@ -1,0 +1,18 @@
+services:
+  - type: worker
+    name: bambu-lab-discord-bot
+    env: python
+    plan: free  # oder starter für 24/7 Betrieb
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bambu_bot.py
+    envVars:
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: BAMBU_PRINTER_IP
+        sync: false
+      - key: BAMBU_ACCESS_CODE
+        sync: false
+      - key: BAMBU_SERIAL
+        sync: false
+      - key: STATUS_CHANNEL_ID
+        sync: false

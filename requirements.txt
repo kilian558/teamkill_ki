@@ -1,4 +1,12 @@
+# Original dependencies
 requests
 python-dotenv
 openai
 urllib3
+
+# Discord Bot dependencies
+discord.py>=2.3.0
+aiohttp
+
+# Bambu Lab MQTT integration
+paho-mqtt>=1.6.0
