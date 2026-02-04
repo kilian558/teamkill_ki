@@ -75,7 +75,15 @@ try:
     grok_client = OpenAI(api_key=XAI_API_KEY, base_url="https://api.x.ai/v1")
 except Exception as e:
     print(f"FEHLER: Grok-Client konnte nicht initialisiert werden: {e}")
-    sys.exit(1 -> str:
+    sys.exit(1)
+
+# Pro Server: last_max_id, seen_log_ids, player_cooldowns (dict player_id -> last_time)
+server_states: Dict[str, Dict] = {
+    url: {"last_max_id": 0, "seen_log_ids": set(), "player_cooldowns": {}}
+    for url in CRCON_BASE_URLS
+}
+
+def get_joke() -> str:
     """Harmlose, kreative Witze – allgemein über Teamkills, immer positiv-lustig"""
     fallback_joke = "In HLL sind Teamkills wie unerwartete Plot-Twists – hält die Runde spannend!"
     
@@ -94,7 +102,10 @@ except Exception as e:
         return joke if joke else fallback_joke
     except Exception as e:
         print(f"Grok Fehler: {e}")
-        return fallback_joke: str) -> List[Dict]:
+        return fallback_joke
+
+
+def get_recent_logs(base_url: str) -> List[Dict]:
     """Holt aktuelle Chat-Logs vom Server"""
     try:
         payload = {"limit": LOG_LIMIT}
@@ -114,14 +125,11 @@ except Exception as e:
     except requests.exceptions.RequestException as e:
         print(f"Request-Fehler Logs ({base_url}): {e}")
     except Exception as e:
-        print(f"Unerwarteter FehlerCHAT_ENDPOINT}",
-            json=payload,
-            headers=HEADERS,
-            verify=VERIFY_SSL,
-            timeout=10
-        )
-        if response.status_code == 200:
-            return response.json(: str, player_id: str, player_name: str, text: str) -> bool:
+        print(f"Unerwarteter Fehler Logs ({base_url}): {e}")
+    return []
+
+
+def send_private_message(base_url: str, player_id: str, player_name: str, text: str) -> bool:
     """Sendet eine private Nachricht an einen Spieler"""
     try:
         payload = {"player_id": player_id, "message": text}
@@ -143,7 +151,14 @@ except Exception as e:
         print(f"Timeout beim Senden der PM an {player_name}")
         return False
     except requests.exceptions.RequestException as e:
-        print(f"Request-Fehle: str, player_name: str, player_id: str, original_message: str, joke: str) -> None:
+        print(f"Request-Fehler PM ({base_url}): {e}")
+        return False
+    except Exception as e:
+        print(f"Unerwarteter Fehler PM ({base_url}): {e}")
+        return False
+
+
+def log_to_discord(server_url: str, player_name: str, player_id: str, original_message: str, joke: str) -> None:
     """Loggt Ereignisse in Discord-Webhook"""
     if not DISCORD_WEBHOOK_URL:
         return
@@ -160,6 +175,13 @@ except Exception as e:
             DISCORD_WEBHOOK_URL, 
             json={"content": log_text}, 
             timeout=REQUEST_TIMEOUT
+        )
+    except requests.exceptions.Timeout:
+        print("Timeout beim Discord-Logging")
+    except Exception as e:
+        print(f"Discord Log Fehler: {e}")
+
+
 def main():
     """Hauptfunktion - Bot-Loop"""
     print("=" * 60)
@@ -259,26 +281,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main( Cooldown pro Spieler prüfen
-                last_time = state["player_cooldowns"].get(player_id, 0)
-                if current_time - last_time < COOLDOWN_SECONDS:
-                    continue  # Zu früh für diesen Spieler
-
-                joke = get_joke()
-                pm_text = f"{joke}\n\ndiscord.gg/gbg-hll"
-
-                success = send_private_message(normalized_url, player_id, player_name, pm_text)
-                if success:
-                    state["seen_log_ids"].add(log_id)
-                    state["player_cooldowns"][player_id] = current_time
-                    log_to_discord(normalized_url, player_name, player_id, log.get("content", ""), joke)
-                    port = normalized_url.split(":")[-1].split("/")[0]
-                    print(f"Harmloser TK-Witz auf Port {port} an {player_name} gesendet")
-
-        # Aufräumen
-        if len(state["seen_log_ids"]) > 2000:
-            state["seen_log_ids"] = set(list(state["seen_log_ids"])[-1000:])
-
-        time.sleep(2)
-
-    time.sleep(10)
+    main()
