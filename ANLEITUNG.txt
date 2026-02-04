@@ -1,0 +1,105 @@
+╔═══════════════════════════════════════════════════════════════╗
+║             TK-WITZ-BOT - SCHNELLSTART-ANLEITUNG              ║
+╚═══════════════════════════════════════════════════════════════╝
+
+📋 INSTALLATION (einmalig)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. System-Pakete installieren:
+   sudo apt update && sudo apt upgrade -y
+   sudo apt install python3 python3-pip -y
+   
+2. Node.js & pm2 installieren:
+   curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+   sudo apt install -y nodejs
+   sudo npm install -g pm2
+
+3. Bot-Dateien hochladen:
+   - Alle Dateien in ein Verzeichnis kopieren (z.B. ~/bots/tk-witz-bot/)
+   
+4. Konfiguration:
+   cp .env.example .env
+   nano .env
+   → Fülle alle Werte aus (CRCON_BASE_URLS, CRCON_TOKEN, etc.)
+
+5. Scripts ausführbar machen:
+   chmod +x start.sh stop.sh restart.sh update.sh main.py
+
+
+🚀 BOT STARTEN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   ./start.sh
+
+   → Installiert automatisch Dependencies
+   → Startet Bot mit pm2
+   → Zeigt Status an
+
+
+📊 WICHTIGSTE BEFEHLE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+pm2 status                  → Status aller pm2-Prozesse
+pm2 logs tk-witz-bot        → Live-Logs anzeigen (Ctrl+C zum Beenden)
+pm2 logs tk-witz-bot --lines 50  → Letzte 50 Zeilen anzeigen
+pm2 restart tk-witz-bot     → Bot neustarten
+pm2 stop tk-witz-bot        → Bot stoppen
+pm2 monit                   → Monitoring-Dashboard
+
+Oder verwende die Scripts:
+./stop.sh       → Bot stoppen
+./restart.sh    → Bot neustarten
+./update.sh     → Dependencies aktualisieren & Bot neustarten
+
+
+🔧 BOT BEIM SYSTEMSTART AUTOMATISCH STARTEN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+pm2 startup
+→ Führe den angezeigten Befehl aus (mit sudo)
+
+pm2 save
+→ Speichert aktuelle pm2-Prozesse
+
+
+📁 LOGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Logs befinden sich in: ./logs/
+- out.log       → Standard Output
+- err.log       → Fehler
+- combined.log  → Alles zusammen
+
+
+🐛 TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Bot startet nicht:
+→ pm2 logs tk-witz-bot --err
+→ Prüfe .env Datei: cat .env
+→ Teste manuell: python3 main.py
+
+Dependencies fehlen:
+→ pip3 install -r requirements.txt --force-reinstall
+
+pm2 nicht gefunden:
+→ sudo npm install -g pm2
+
+Python3 nicht gefunden:
+→ sudo apt install python3 python3-pip
+
+
+💡 TIPPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Bot läuft im Hintergrund, auch nach SSH-Disconnect
+✓ Startet automatisch nach Absturz neu (max 10x)
+✓ Nutzt max. 500MB RAM (restart bei Überschreitung)
+✓ Logs werden automatisch rotiert
+✓ Graceful Shutdown bei pm2 stop/restart
+
+
+📞 WEITERE HILFE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Siehe README.md für detaillierte Dokumentation

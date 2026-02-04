@@ -1,0 +1,14 @@
+# Shell-Scripts sollen LF behalten (für Linux)
+*.sh text eol=lf
+
+# Python-Dateien
+*.py text eol=lf
+
+# Config-Dateien
+*.js text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+
+# .env Dateien
+.env* text eol=lf
